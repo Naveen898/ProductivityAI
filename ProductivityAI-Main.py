@@ -25,7 +25,9 @@ import win32com.client as wincl
 from gtts import gTTS
 
 #Initialising OpenAI API
-openai.api_key = "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"
+openai.api_key = "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"
+#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(now created)
+#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
 
 # Initialize the text-to-speech engine
 engine = pyttsx3.init('sapi5')
@@ -155,7 +157,7 @@ def transcribe_media_to_text(filename):
 # Function to generate response using GPT-3
 def generate_response(prompt):
 	response = openai.Completion.create(
-		engine="text-davinci-003",
+		engine="gpt-3.5-turbo-instruct",
 		prompt=prompt,
 		max_tokens=4000,
 		n=1,
