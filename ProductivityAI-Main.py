@@ -156,15 +156,27 @@ def transcribe_media_to_text(filename):
 
 # Function to generate response using GPT-3
 def generate_response(prompt):
-	response = openai.Completion.create(
-		engine="gpt-3.5-turbo-instruct",
-		prompt=prompt,
-		max_tokens=4000,
-		n=1,
-		stop=None,
-		temperature=0.5,
-	)
-	return response["choices"][0]["text"]
+    response = client.completions.create(
+        engine="gpt-3.5-turbo-instruct",  # Adjust the engine according to your preference
+        prompt=prompt,
+        max_tokens=4096,  # Adjust as needed
+        n=1,
+        stop=None,
+        temperature=0.5,
+    )
+    return response["choices"][0]["text"].strip()
+
+'''def generate_response(prompt):
+    response = client.chat.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are an assistant."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    return response["choices"][0]["message"]["content"]
+'''
+
 
 # Function to test text-to-speech
 def speak_test(text):
