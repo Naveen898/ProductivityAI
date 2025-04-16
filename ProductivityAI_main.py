@@ -1,5 +1,4 @@
 import numpy as np
-import openai
 import pyautogui
 import cv2
 import pygetwindow as gw
@@ -46,7 +45,7 @@ def wishMe():
 	else:
 		speak("Good Evening!")
 
-	assname = "ProductivityAI, an assistant for your computer, also powered by your LLM"  # Your assistant's name
+	assname = "ProductivityAI, an assistant for your computer, also powered by Llama"  # Your assistant's name
 	speak("I am your Assistant")
 	speak(assname)
 	speak("How can I help you?")
@@ -104,21 +103,6 @@ def live_dictate():
 
     return "I'm sorry, I didn't understand that command."
 
-# Function to send an email
-def sendEmail(to, content):
-	try:
-		server = smtplib.SMTP('smtp.gmail.com', 587)
-		server.ehlo()
-		server.starttls()
-		server.login('naveenb.gaming@gmail.com', 'Bnaveen@27')
-		server.sendmail('naveenb.gaming@gmail.com', to, content)
-		server.close()
-		print("Email sent successfully")
-		speak("Email sent successfully")
-	except Exception as e:
-		print("An error occured, kindly give your query once again to send the email, or else try other features that I can help you")
-		speak("An error occured, kindly give your query once again to send the email, or else try other features that I can help you")
-
 def get_weather_forecast(city):
     api_key = "b5a2d8688bc0c191115d91e6bb76a120"  # Replace with your OpenWeatherMap API key
     base_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
@@ -170,7 +154,7 @@ def speak_test(text):
 	engine.runAndWait()
 
 def chat_gpt():
-	speak("Switching to Genius mode, presented by ChatGPT")
+	speak("Switching to Genius mode, now your LLM is in action")
 	speak("Now, please note, whenever you want to ask question, just say 'Genius' to speak!")
 	while True:
 		print("Say 'Genius' to start recording your question...")
@@ -200,7 +184,7 @@ def chat_gpt():
 						# Generate response using GPT-3
 						response = generate_response(text)  # Call the function to get a response
 
-						print(f"GPT-4 says: {response}")
+						print(f"Your LLM says: {response}")
 
 						# Read response using text-to-speech
 						speak_test(response)  # Corrected function name
@@ -304,18 +288,6 @@ if __name__ == '__main__':
 			elif 'open notion calendar' in query:
 				speak("Here we go, Opening Notion Calendar for you!\n")
 				codePath = r"C:\Users\bnave\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Notion Calendar.lnk"
-
-			elif 'send a mail' in query:
-				try:
-					speak("What should I say?")
-					content = takeCommand()
-					speak("whome should i send")
-					to = input()
-					sendEmail(to, content)
-					speak("Email has been sent !")
-				except Exception as e:
-					print(e)
-					speak("I am not able to send this email")
 
 			elif 'weather update' in query:
 				speak("Which city you would like the weather for?")
