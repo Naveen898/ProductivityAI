@@ -153,7 +153,7 @@ def speak_test(text):
 	engine.say(text)
 	engine.runAndWait()
 
-def chat_gpt():
+def llm_activate():
 	speak("Switching to Genius mode, now your LLM is in action")
 	speak("Now, please note, whenever you want to ask question, just say 'Genius' to speak!")
 	while True:
@@ -219,7 +219,7 @@ if __name__ == '__main__':
 
 	while True:
 		query = takeCommand().lower()
-		if query=="jarvis":
+		if query=="Hello":
 			speak("Speak")
 			query=takeCommand().lower()
 			#if assistance_mode:  # Only process commands when in genius mode
@@ -232,7 +232,7 @@ if __name__ == '__main__':
 				speak(results)
 
 			elif 'switch to genius mode' in query:
-				chat_gpt()
+				llm_activate()
 			
 			elif 'open youtube' in query:
 				speak("Here you go to Youtube\n")
