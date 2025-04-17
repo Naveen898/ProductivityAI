@@ -320,6 +320,7 @@ if __name__ == '__main__':
 
 			elif 'a joke' in query:
 				speak(pyjokes.get_joke())
+				print(pyjokes.get_joke())
 
 			elif "calculate" in query:
 
