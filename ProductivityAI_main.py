@@ -223,16 +223,16 @@ if __name__ == '__main__':
 			speak("Speak")
 			query=takeCommand().lower()
 			#if assistance_mode:  # Only process commands when in genius mode
-			if 'wikipedia' in query:
+			if 'switch to genius mode' in query:
+				llm_activate()
+			
+			elif 'wikipedia' in query:
 				speak('Searching Wikipedia... Please wait...')
 				query = query.replace("wikipedia", "")
 				results = wikipedia.summary(query, sentences=3)
 				speak("According to Wikipedia")
 				print(results)
 				speak(results)
-
-			elif 'switch to genius mode' in query:
-				llm_activate()
 			
 			elif 'open youtube' in query:
 				speak("Here you go to Youtube\n")
