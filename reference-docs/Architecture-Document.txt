@@ -1,0 +1,87 @@
+Architecture Document
+
+1. Introduction
+1.1 Objective
+The ProductivityAI - Desktop Assistant with Built-in GPT-4 is designed to enhance user efficiency by enabling voice-controlled automation, intelligent assistance, and seamless task execution. This document provides an in-depth look at the system architecture, detailing its structure, components, and workflow.
+2. Selection of Architecture
+2.1 Possible Choices
+Several architectural methodologies were considered for ProductivityAI, including:
+1. Monolithic Architecture - A single application where all functionalities are tightly integrated.
+2. Microservices Architecture - Decomposes the system into small, loosely coupled services, each handling a specific function.
+3. Event-Driven Architecture - Uses events to trigger and communicate between decoupled services.
+4. Serverless Architecture - Runs the application logic without managing the underlying infrastructure, utilizing cloud functions.
+2.2 Chosen Architecture: Monolithic Architecture with Modular Components
+The Monolithic Architecture was selected for the following reasons:
+1. Simplicity & Development Speed - A single codebase makes it easier to develop, debug, and maintain.
+2. Performance Efficiency - Reduces latency as all components reside in one executable environment.
+3. Offline Functionality - Ensures continuous operation without internet dependency.
+4. Easier Deployment & Maintenance - Eliminates complexity associated with service orchestration in microservices.
+3. System Components and Flow
+3.1 Voice Processing Module
+* Captures user voice input and converts it into text using Google Speech API.
+* Filters out noise and enhances recognition accuracy.
+3.2 Text Processing & AI Engine
+* Uses GPT-4 API to interpret user queries and generate intelligent responses.
+* Maintains conversation context for improved interaction.
+3.3 Command Execution Module
+* Interprets user commands to open applications, manage files, or execute predefined tasks.
+* Includes automation features for repetitive desktop tasks.
+3.4 Text-to-Speech (TTS) Module
+* Converts AI-generated responses into natural-sounding speech.
+* Uses pyttsx3 for offline functionality.
+3.5 Integration Module
+* Connects with external services for Wikipedia search, web search, and email handling.
+* Uses API calls to fetch and process relevant information.
+3.6 Scheduler & Reminder Module
+* Allows users to set reminders and schedule tasks via voice commands.
+* Notifies users of upcoming events through verbal alerts.
+4. Architecture Diagrams
+4.1 Use Case Diagram
+Actors:
+* User
+* System
+Use Cases:
+* Issue voice commands
+* Receive AI-generated responses
+* Execute system tasks
+* Retrieve web-based information
+* Manage schedules and reminders
+4.2 Class Diagram
+Classes & Relationships:
+1. VoiceProcessor - Converts speech to text.
+2. AIEngine - Interacts with GPT-4 for intelligent responses.
+3. CommandExecutor - Executes system commands.
+4. TTSProcessor - Handles text-to-speech conversion.
+5. Scheduler - Manages reminders and schedules.
+4.3 Data Flow Diagram (DFD)
+DFD Levels:
+* Level 0: User interacts with the system via voice input.
+* Level 1: The Voice Processing Module converts input to text.
+* Level 2: The AI Engine processes text and returns responses.
+* Level 3: Command Execution Module performs actions based on responses.
+4.4 Component Diagram
+System Components:
+1. User Interface - Voice input/output.
+2. AI Processing Unit - Handles NLP and command execution.
+3. Integration Layer - Connects to external APIs.
+4. Storage Unit - Maintains conversation context and logs.
+4.5 Sequence Diagram
+Steps:
+1. User issues a voice command.
+2. Voice Processor converts it to text.
+3. AI Engine interprets and generates a response.
+4. Command Execution Module performs necessary actions.
+5. TTS Module provides verbal feedback to the user.
+4.6 Deployment Diagram
+Deployment Approach:
+1. Core Application - Runs as a background process, constantly listening for user input.
+2. System Tray Integration - Provides an easily accessible interface for enabling/disabling the assistant.
+3. Startup Configuration - Configurable settings to allow auto-start upon system boot.
+4. API and Local Services - Facilitates communication between the AI engine, voice processing module, and command execution components.
+5. Logging and Error Handling - Ensures smooth performance with built-in debugging and error recovery mechanisms.
+
+
+
+MAIN ARCHITECTURE DIAGRAM
+
+

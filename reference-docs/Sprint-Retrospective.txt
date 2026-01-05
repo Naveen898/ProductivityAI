@@ -1,0 +1,42 @@
+                                                  Sprint Retrospective
+      What went well               What went poorly            What ideas do you have How should we take action
+This section highlights the                                This section is for
+successes and positive         This section identifies the brainstorming new
+outcomes from the sprint.      challenges, roadblocks, or approaches, tools, or             This section outlines specific
+It helps the team recognize    failures encountered        strategies to enhance the        steps or solutions to address the
+achievements and identify      during the sprint. It helps team's efficiency,               issues and implement the ideas
+practices that should be       pinpoint areas that need    productivity, or project         discussed, ensuring continuous
+continued.                     improvement or change.      outcomes.                        improvement in future sprints. Guidelines
+   Most of the core features
+                                                                                                                              Ensure robust
+     were implemented and
+                               Faced occasional issues with                                                                         input
+       tested successfully.                                                                 Integrate a noise-reduction layer
+                                 voice recognition in noisy                                                                     processing.
+   Voice command accuracy                                    Add noise filtering and error-     before processing voice.
+                                          settings.                                                                               Always
+      was reliable in quiet                                   handling for unstable APIs.     Use fallback logic with proper
+                               Third-party APIs occasionally                                                                    account for
+          environments.                                                                             error messaging.
+                                           failed.                                                                            third-party API
+    System task automation
+                                                                                                                                 downtime.
+    worked without glitches.
+     App launching worked                                                                                                       Encourage
+    smoothly for pre-defined   Rigid support—can’t launch       Make the app launcher      Allow users to define apps via a      modular
+              apps.            apps not already coded in.             modular.                       config file.             development.
+      System functions like      No user customization      Introduce a user-configurable Update documentation to help           Improve
+   shutdown and recycle bin      without code changes.                  setup.                users extend app access.         accessibility
+      performed perfectly.                                                                                                  for non-coders.
+                                                                                                                            Balance quality
+   GPT-4 responses were                                                                                                             with
+                                Some GPT-4 replies were                                     Limit GPT-4 output based on
+  contextually relevant and                                 Optimize length of responses.                                     performance.
+                                     overly verbose.                                               command type.
+         coherent.                                          Cache static results to reduce                                        Cache
+                               API rate limits occasionally                                     Implement caching for
+  Wikipedia query handling                                        API dependency.                                             intelligently to
+                                     caused failures.                                          frequent/static queries.
+   was fast and accurate.                                                                                                         reduce
+                                                                                                                             repeated load.
+

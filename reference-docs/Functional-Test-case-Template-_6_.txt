@@ -1,0 +1,31 @@
+                                        Functional Test Case Template
+                        Steps to execute
+Feature    Test Case                           Expected Output         Actual Output            Status More Information
+                        test case
+                        Open the
+                        application's login
+                        page.                                                                         No error messages are
+                                                                                                      displayed.
+                        Enter a valid                                  The user is
+                        username.              The user should be      successfully logged            The user profile
+                                                                                           Pass
+                                               successfully logged     in.                            information is correctly
+                        Enter a valid          into the system.                                       displayed on the home
+                        password.                                                                     page.
+                                               The application should The application
+           Valid User   Click on the "Login"   redirect the user to the redirects the user to         Check if the login time is
+User Login Login        button.                home page.               the home page.                recorded for the user.
+                        Open the
+                        application's login   The system should
+                        page.                 send a password reset
+                                               email to the provided The system                       Verify the content of the
+                        Click on the "Forgot email address.          successfully sends a             password reset email.
+                        Password" link.                              password reset
+                                                                                          Pass
+                                                                     email.
+                        Enter a valid email The user should
+                        address.              receive an email with                                   Check that the link in the
+                                              instructions on        The user receives                email redirects the user
+Password   Forgot       Click on the "Submit" resetting the          the email with reset             to the password reset
+Recovery   Password     button.               password.              instructions.                    page.
+

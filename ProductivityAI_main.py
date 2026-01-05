@@ -1,4 +1,4 @@
-import numpy as np
+#import numpy as np
 import pyautogui
 import cv2
 import pygetwindow as gw
@@ -24,6 +24,11 @@ import win32com.client as wincl
 from gtts import gTTS
 from ollama import Client
 
+#testing
+import fnmatch
+import winreg
+from pathlib import Path
+
 # Initialize the text-to-speech engine
 engine = pyttsx3.init('sapi5')
 voices = engine.getProperty('voices')
@@ -32,8 +37,13 @@ engine.setProperty("rate", 175)
 
 # Function to speak out the given text
 def speak(audio):
-	engine.say(audio)
-	engine.runAndWait()
+    # Using win32com is more stable and avoids conflicts with speech_recognition
+    try:
+        speaker = wincl.Dispatch("SAPI.SpVoice")
+        speaker.Speak(audio)
+    except Exception as e:
+        print(f"TTS error: {e}")
+		
 
 # Function to greet the user based on the time of day
 def wishMe():
@@ -141,7 +151,7 @@ def generate_response(prompt):
         client = Client()
         
         # Call the generate method on the client instance
-        model = "llama3.2"  # Replace with your model name
+        model = "llama3.2:1b"  # Replace with your model name
         response = client.generate(model=model, prompt=prompt)
         return response.response  # Return the response text
     except Exception as e:
@@ -181,7 +191,7 @@ def llm_activate():
 						print(f"You said: {text}")
 						speak(f"You said:{text}")
 
-						# Generate response using GPT-3
+						# Generate response using Ollama
 						response = generate_response(text)  # Call the function to get a response
 
 						print(f"Your LLM says: {response}")
@@ -209,6 +219,245 @@ def get_current_time():
     now = datetime.datetime.now().strftime("%I:%M %p")
     return now
 
+#testing
+# Sprint-1 : Find and open applications by name on Windows
+def find_and_open_app(app_name: str) -> bool:
+    """
+    Open an app by name on Windows.
+
+    Strategy:
+      0) UWP/system URIs (e.g., Settings via ms-settings:)
+      1) Known built-in system executables (notepad, calc, etc.)
+      2) Shell start (lets Windows resolve registered apps)
+      3) PATH lookup (shutil.which)
+      4) App Paths registry (HKCU/HKLM)
+      5) Search Start Menu + common install folders
+    """
+    name = (app_name or "").strip().strip('"').strip("'")
+    if not name:
+        return False
+
+    n = name.lower()
+
+    # 0) UWP/system pages via URI (Settings isn't a normal .exe)
+    uri_map = {
+        "settings": "ms-settings:",
+        "windows settings": "ms-settings:",
+        "bluetooth": "ms-settings:bluetooth",
+        "wifi": "ms-settings:network-wifi",
+        "network": "ms-settings:network",
+        "display": "ms-settings:display",
+        "apps": "ms-settings:appsfeatures",
+        "updates": "ms-settings:windowsupdate",
+        "windows update": "ms-settings:windowsupdate",
+        "privacy": "ms-settings:privacy",
+        "sound": "ms-settings:sound",
+    }
+    if n in uri_map:
+        try:
+            os.startfile(uri_map[n])
+            return True
+        except Exception:
+            try:
+                subprocess.Popen(f'cmd /c start "" "{uri_map[n]}"', shell=True)
+                return True
+            except Exception:
+                return False
+
+    # 1) Built-in/system executables
+    system_map = {
+        "notepad": r"C:\Windows\System32\notepad.exe",
+        "calc": r"C:\Windows\System32\calc.exe",
+        "calculator": r"C:\Windows\System32\calc.exe",
+        "paint": r"C:\Windows\System32\mspaint.exe",
+        "cmd": r"C:\Windows\System32\cmd.exe",
+        "powershell": r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+        "control panel": r"C:\Windows\System32\control.exe",
+        "task manager": r"C:\Windows\System32\taskmgr.exe",
+    }
+    if n in system_map and os.path.isfile(system_map[n]):
+        subprocess.Popen([system_map[n]], shell=False)
+        return True
+
+    # Normalize candidates
+    candidates: list[str] = [name]
+    if not name.lower().endswith(".exe"):
+        candidates.append(f"{name}.exe")
+
+    # 2) Shell start (handles many registered apps / aliases)
+    # Note: This may return True even if the app doesn't exist; keep it after known URIs/system.
+    try:
+        subprocess.Popen(f'cmd /c start "" "{name}"', shell=True)
+        return True
+    except Exception:
+        pass
+
+    # 3) PATH lookup
+    for c in candidates:
+        try:
+            exe = shutil.which(c)
+            if exe:
+                subprocess.Popen([exe], shell=False)
+                return True
+        except Exception:
+            pass
+
+    # 4) App Paths registry lookup
+    def _reg_app_path(exe_name: str) -> str | None:
+        subkey = rf"Software\Microsoft\Windows\CurrentVersion\App Paths\{exe_name}"
+        hives = [winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE]
+        for hive in hives:
+            try:
+                with winreg.OpenKey(hive, subkey) as k:
+                    val, _ = winreg.QueryValueEx(k, "")
+                    if val and os.path.isfile(val):
+                        return val
+            except OSError:
+                continue
+        return None
+
+    for c in candidates:
+        exe_name = c if c.lower().endswith(".exe") else f"{c}.exe"
+        reg_path = _reg_app_path(exe_name)
+        if reg_path:
+            subprocess.Popen([reg_path], shell=False)
+            return True
+
+    # 5) Search common locations (shortcuts + install dirs + Windows folders)
+    search_dirs = [
+        os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs"),
+        os.path.join(os.environ.get("PROGRAMDATA", ""), r"Microsoft\Windows\Start Menu\Programs"),
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), r"Microsoft\WindowsApps"),
+        r"C:\Windows\System32",
+        r"C:\Windows",
+        r"C:\Program Files",
+        r"C:\Program Files (x86)",
+    ]
+
+    exts = ("*.lnk", "*.exe", "*.appref-ms", "*.url")
+    needle = n
+
+    for base in search_dirs:
+        if not base or not os.path.isdir(base):
+            continue
+        for root, _, files in os.walk(base):
+            for pattern in exts:
+                for fname in fnmatch.filter(files, pattern):
+                    if needle in fname.lower():
+                        path = os.path.join(root, fname)
+                        try:
+                            os.startfile(path)
+                            return True
+                        except Exception:
+                            try:
+                                subprocess.Popen([path], shell=False)
+                                return True
+                            except Exception:
+                                pass
+
+    return False
+
+#Sprint-1 : Voice Notes
+NOTES_DIR = Path(__file__).resolve().parent / "notes"
+
+def save_voice_note(text: str) -> Path:
+    NOTES_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    note_path = NOTES_DIR / f"note_{ts}.txt"
+    note_path.write_text(text.strip() + "\n", encoding="utf-8")
+    return note_path
+
+def get_latest_note_path() -> Path | None:
+    if not NOTES_DIR.exists():
+        return None
+    notes = sorted(NOTES_DIR.glob("note_*.txt"), reverse=True)
+    return notes[0] if notes else None
+
+def read_latest_note() -> str | None:
+    p = get_latest_note_path()
+    if not p:
+        return None
+    return p.read_text(encoding="utf-8").strip()
+
+#Sprint-1 : Open Websites
+# There are 3 ways:
+# 1) Hardcoded for common sites (YouTube, Google, etc.)
+# 2) Searching the website directly through voice
+# 3) If site not available, safely do a web search
+
+WEBSITE_ALIASES = {
+    "google": "https://www.google.com",
+    "youtube": "https://www.youtube.com",
+    "gmail": "https://mail.google.com",
+    "github": "https://github.com",
+    "stackoverflow": "https://stackoverflow.com",
+    # add your frequent ones:
+    # "nothing": "https://in.nothing.tech",
+}
+
+def _spoken_to_url(text: str) -> str:
+    """
+    Converts speech-like input to a usable URL.
+    Examples:
+      'wccftech dot com' -> 'wccftech.com'
+      'https colon slash slash example dot com' (rough) -> best-effort
+    """
+    s = (text or "").strip().lower()
+
+    # Common speech patterns
+    s = s.replace(" dot ", ".")
+    s = s.replace(" slash ", "/")
+    s = s.replace(" colon ", ":")
+    s = s.replace(" www ", " www.")
+    s = s.replace("www dot ", "www.")
+    s = s.strip().strip('"').strip("'")
+
+    return s
+
+def _looks_like_domain_or_url(s: str) -> bool:
+    s = (s or "").strip().lower()
+    if not s:
+        return False
+    if s.startswith(("http://", "https://")):
+        return True
+    # crude but effective: domains usually contain a dot and no spaces
+    return ("." in s) and (" " not in s)
+
+def _ensure_scheme(url: str) -> str:
+    url = (url or "").strip()
+    if url.startswith(("http://", "https://")):
+        return url
+    return "https://" + url
+
+def open_website_target(target: str) -> bool:
+    """
+    Opens a website if target is an alias or looks like a domain/url.
+    Returns True if opened as website, else False.
+    """
+    t = _spoken_to_url(target)
+
+    # Alias first (open google/youtube without typing .com)
+    if t in WEBSITE_ALIASES:
+        webbrowser.open(WEBSITE_ALIASES[t])
+        return True
+
+    # Direct domain/url support
+    if _looks_like_domain_or_url(t):
+        webbrowser.open(_ensure_scheme(t))
+        return True
+
+    return False
+
+def open_web_search(query_text: str) -> None:
+    q = (query_text or "").strip()
+    if not q:
+        return
+    webbrowser.open("https://www.google.com/search?q=" + requests.utils.quote(q))
+
+#---------------------------------------------
+# # # # # # Main Function # # # # # #
+#---------------------------------------------
+
 if __name__ == '__main__':
 	clear = lambda: os.system('cls')
 	clear()
@@ -219,9 +468,9 @@ if __name__ == '__main__':
 
 	while True:
 		query = takeCommand().lower()
-		if query=="Hello":
+		if query == "jarvis" or query == "hello" or query == "assistant":
 			speak("Speak")
-			query=takeCommand().lower()
+			query = takeCommand().lower()
 			#if assistance_mode:  # Only process commands when in genius mode
 			if 'switch to genius mode' in query:
 				llm_activate()
@@ -234,61 +483,23 @@ if __name__ == '__main__':
 				print(results)
 				speak(results)
 			
-			elif 'open youtube' in query:
-				speak("Here you go to Youtube\n")
-				webbrowser.open("youtube.com")
-		
-			elif 'open google' in query:
-				speak("Here you go to Google\n")
-				webbrowser.open("google.com")
+			#elif 'open youtube' in query:
+			#	speak("Here you go to Youtube\n")
+			#	webbrowser.open("youtube.com")
+			
+			#elif 'open google' in query:
+			#	speak("Here you go to Google\n")
+			#	webbrowser.open("google.com")
 
 			elif 'the time' in query:
 				current_time=get_current_time()
 				speak(f"The time currently is {current_time}")
 
-			elif 'open chrome' in query:
-				speak("Here we go, Opening Google Chrome for you!\n")
-				codePath = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-				os.startfile(codePath)
-
-			elif 'open discord' in query:
-				speak("Here we go, Opening Discord for you!\n")
-				codePath = r"C:\Users\bnave\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk"
-				os.startfile(codePath)
-
-			elif 'open studio code' in query:
-				speak("Here we go, Opening Visual Studio Code for you!\n")
-				codePath = r"D:\Softwares\Microsoft VS Code\Code.exe"
-				os.startfile(codePath)
-			
-			elif 'open zoom' in query:
-				speak("Here we go, Opening Zoom for you!\n")
-				codePath = r"C:\Users\bnave\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Zoom\Zoom Workplace.lnk"
-				os.startfile(codePath)
-
-			elif 'open word' in query:
-				speak("Here we go, Opening Microsoft Word for you!\n")
-				codePath = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Word.lnk"
-				os.startfile(codePath)
-
-			elif 'open excel' in query:
-				speak("Here we go, Opening Microsoft Excel for you!\n")
-				codePath = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Excel.lnk"
-				os.startfile(codePath)
-
-			elif 'open powerpoint' in query:
-				speak("Here we go, Opening Microsoft PowerPoint for you!\n")
-				codePath = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\PowerPoint.lnk"
-				os.startfile(codePath)
-			
-			elif 'open notion' in query:
-				speak("Here we go, Opening Notion for you!\n")
-				codePath = r"C:\Users\bnave\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Notion.lnk"
-
-			elif 'open notion calendar' in query:
-				speak("Here we go, Opening Notion Calendar for you!\n")
-				codePath = r"C:\Users\bnave\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Notion Calendar.lnk"
-
+			#elif 'open powerpoint' in query:
+			#	speak("Here we go, Opening Microsoft PowerPoint for you!\n")
+			#	codePath = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\PowerPoint.lnk"
+			#	os.startfile(codePath)
+				
 			elif 'weather update' in query:
 				speak("Which city you would like the weather for?")
 				city=takeCommand()
@@ -324,11 +535,11 @@ if __name__ == '__main__':
 
 			elif "calculate" in query:
 
-				app_id = "Y98U78-V377URAEV4"
+				app_id = "EAW7LV24RK"
 				client = wolframalpha.Client(app_id)
 				indx = query.lower().split().index('calculate')
-				query = query.split()[indx + 1:]
-				res = client.query(' '.join(query))
+				calc_query = ' '.join(query.split()[indx + 1:])
+				res = client.query(calc_query)
 				answer = next(res.results).text
 				print("The answer is " + answer)
 				speak("The answer is " + answer)
@@ -423,17 +634,28 @@ if __name__ == '__main__':
 				time.sleep(5)
 				subprocess.call(["shutdown", "/l"])
 
-			elif "write a note" in query:
-				speak("What should i write, sir")
-				note = takeCommand()
-				file = open('DVA.txt', 'w')
-				file.write(note)
-
-			elif "show note" in query:
-				speak("Showing Notes")
-				file = open("DVA.txt", "r")
-				print(file.read())
-				speak(file.read(6))
+			# Writing and Reading Voice Notes - SPRINT-1
+				
+			elif "write a note" in query or "voice note" in query:
+				speak("What should I write?")
+				note_text = takeCommand()
+				if not note_text or note_text.lower() == "none":
+					speak("I didn't catch that.")
+				else:
+					path = save_voice_note(note_text)
+					speak("Saved.")
+					print(f"Saved note to: {path}")
+			
+			elif "show note" in query or "read note" in query:
+				text = read_latest_note()
+				if not text:
+					speak("You have no notes yet.")
+				else:
+					print(text)
+					# Speak a shorter preview to avoid long TTS
+					preview = text if len(text) <= 300 else (text[:300] + "...")
+					speak("Here is your latest note.")
+					speak(preview)
 
 			elif "take screenshot" in query:
 				take_screenshot()
@@ -442,4 +664,28 @@ if __name__ == '__main__':
 				response = live_dictate()
 				speak(response)
 
+			# Open Applications by name - SPRINT-1
+			elif query.startswith("open "):
+				app_name = query.replace("open ", "", 1).strip()
+				if find_and_open_app(app_name):
+					speak(f"Opening {app_name} for you.")
+				else:
+					speak(f"Sorry, I couldn't find an application named {app_name}.")
+			
+			# Open Websites - SPRINT-1
+			elif ("go to a website" in query) or ("go to website" in query) or ("i need to go to a website" in query):
+				speak("Which website would you like to open?")
+				target=takeCommand().strip()
 
+				if not target or target.lower() == "none":
+					speak("I didn't catch that.")
+				elif target.lower() in ("cancel", "stop", "nevermind" , "never mind"):
+					speak("Okay, cancelling.")
+				else:
+					if open_website_target(target):
+						speak(f"Opening {target} for you.")
+					else:
+						speak(f"I couldn't identify {target} as a website, so I will search it for you.")
+						open_web_search(target)
+						speak(f"Here are the search results for {target}.")
+			
