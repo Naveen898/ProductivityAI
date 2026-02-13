@@ -1,0 +1,142 @@
+MAJOR PROJECT VALIDATION FORM
+ 
+Supervisor NamePanel HeadDr. Sibi AmaranDr. Sibi AmaranFaculty AdvisorProject DomainDr. Ramkumar J, Dr. Anto Arockia Rosaline R   TechnologyMStudent(s) Details: NamePassport size photo(s)
+
+1. B. Naveen
+
+
+
+2. S. Krishna Chaitanya
+
+Registration Number(s)
+
+
+
+
+
+
+Email ID(s)&Mobile Number(s)
+1: 9344688335
+2: 9345106133 
+1AbstractThe way we interact with computers is slowly but surely moving towards talking to them, but most desktop assistants we use nowadays are stuck in their own little worlds, leaving us with limited options and no real ability to make things our own. This paper introduces "ProductivityAI v2", a top-notch voice-activated desktop assistant designed to break free from that limitation by combining a brand new, hybrid architecture that brings together the best of both worlds. By teaming up with Ollama, the system can tap into a wide range of both local Large Language Models (LLMs) like Meta Llama 3.2 and Microsoft Phi 3.5, and some serious cloud-based heavy hitters like Mistral Large 3 and Qwen 3. This is a game-changer - users can now pick and choose which model to use for their specific task, weighing the benefits of local models ( privacy and being able to use them offline) against the raw power and speed of cloud-based solutions. To that end, the ProductivityAI v2 introduces a whole suite of features aimed at making users more productive, such as being able to automate a series of tasks in one go, opening up any application or website, getting personalized news from your region, and all the little things like reminders, alarms, and real-time translation. This work takes a big leap forward in creating the kind of desktop assistant that really listens to you as an individual - one that puts you at the centre of the experience and gives you access to a whole range of powerful AI models from one place.2RESEARCH GAP
+(not more than 3 points)
+1. Most existing desktop assistants are locked into a single, proprietary AI model, offering users no flexibility to choose a model that best suits their task, privacy concerns, or cost preferences.
+
+2. While assistants can perform single commands, they generally lack an intuitive, built-in framework for users to create, save, and execute complex, multi-step workflow automations for their specific desktop routines.
+
+3. Users must choose between powerful cloud-based assistants that process data externally and less capable offline tools. There is a lack of a unified system that allows the user to dynamically switch between local (private) and cloud (powerful) AI models.3Please furnish the details of 5 research articles in IEEE Reference format with Impact factor and year of publication from Which Research gap has been identified (F. Lastname, “Title of article,” *Journal Name*, vol., no., pp., year. And IF 3.1))  / 5 Patent Details for highlighting the innovation1. S. S. Raut, A. A. Dudhe, P. P. Deshmukh, and P. S. Dighade, "Voice Ai," International Journal of Scientific Research in Engineering and Management (IJSREM), vol. 07, no. 05, pp. 1-5, 2023. (IF: 7.9)
+
+2. A. A. Al-Zarqa, "AI Voice Assistant," International Journal of Scientific & Engineering Research, vol. 13, no. 5, pp. 1-6, 2022. (IF: 4.5)
+
+3. S. S. Nikam, A. S. Shinde, and P. P. Laturkar, "Smart AI-Powered Desktop Assistant," International Journal for Research in Applied Science & Engineering Technology (IJRASET), vol. 11, no. V, pp. 1-7, 2023. (IF: 7.5)
+
+4. A. A. Al-Zarqa, "Intelligent Voice Automation System," International Journal of Scientific & Engineering Research, vol. 13, no. 5, pp. 1-6, 2022. (IF: 4.5)
+
+5. S. S. Raut, A. A. Dudhe, P. P. Deshmukh, and P. S. Dighade, "Intelligent Personal Assistant using NLP and ML for Assistant Workflow Automation," International Journal of Scientific Research in Engineering and Management (IJSREM), vol. 07, no. 05, pp. 1-5, 2023. (IF: 7.9)4Bridging the Research Gap/ Innovation Gap
+(not more than 3 points)
+
+
+
+1. ProductivityAI integrates the Ollama client, allowing users to seamlessly switch between local LLMs (for privacy and offline use) and powerful cloud-based LLMs (for complex tasks), directly addressing the model rigidity and privacy trade-off gaps.
+
+2. The project introduces a dedicated engine that allows users to record a sequence of commands (e.g., open apps, websites) and save it as a single, voice-activated workflow, filling the gap in deep, personalized desktop automation.
+
+3. The system provides a single, cohesive platform that combines robust system control, web interaction, and flexible AI assistance, creating a more powerful and versatile tool than assistants with siloed functionalities.5OBJECTIVE
+(not more than 5 points)
+
+
+
+
+1. To design and develop a voice-activated desktop assistant with a modular and stable architecture.
+
+2. To implement a hybrid Multi-LLM core using Ollama, enabling dynamic switching between local and cloud-based AI models.
+
+3. To create a user-driven Workflow Automation engine for recording and executing multi-step desktop tasks.
+
+4. To build a suite of "Ease of Use" features for robust system control, including launching any application and navigating the web via voice.
+
+5. To integrate "Quality of Life" features such as reminders, alarms, and language translation to enhance the user's daily productivity.6System Architecture The system employs a Monolithic Architecture with Modular Components, structured as a central hub-and-spoke model.
+* Hub: A central Command Parser & Router receives text queries from the Speech-to-Text module.
+* Spokes: The parser routes commands to specialized modules:
+1. System Control Module: For local OS tasks (e.g., find_and_open_app).
+2. AI & Knowledge Engine: Manages the Multi-LLM Core (via Ollama) and other APIs (Wikipedia, WolframAlpha).
+3. Automation & QoL Module: Manages workflows, reminders, and translation.
+* Output: All responses are channeled through a Text-to-Speech (TTS) Module to provide auditory feedback to the user.
+7METHODOLOGY
+(not more than 10 points)
+
+
+
+
+1. Analyzed requirements and defined user stories for three distinct development sprints (Ease of Use, LLMs & Automations, Quality of Life).
+2. Designed a modular monolithic architecture to ensure high performance and deep system integration for desktop control.
+3. Set up a Python development environment with all necessary libraries, including speech_recognition, pyttsx3, ollama, and winshell.
+4. Developed core "Ease of Use" features in Sprint 1, implementing robust application launching, website navigation, and voice note creation.
+5. Refactored the main command parser and application structure to enhance system stability and resolve critical feature conflicts.
+6. Planned the integration of a hybrid Multi-LLM core and a user-driven Workflow Automation engine for Sprint 2.
+7. Scheduled the implementation of "Quality of Life" features, such as reminders and language translation, for Sprint 3.
+8. Conducted functional testing for all Sprint 1 features and documented the results in a formal test case matrix.
+9. Maintained comprehensive project documentation, including Architecture, Functional, and Sprint Retrospective reports.
+10. Adhered to the Agile SCRUM framework, utilizing sprints, daily stand-ups, and retrospectives to guide the iterative development process.8OUTCOMES OR DELIVERABLES
+(not more than 5 points)
+
+
+
+1. A functional desktop voice assistant (MVP) with core features for launching applications, navigating the web, and taking voice notes.
+2. A complete set of project documentation, including Architecture, Functional, and Test Case documents for Sprint 1.
+3. A research paper detailing the novelty and architecture of the ProductivityAI system.
+4. A final, enhanced application featuring a hybrid Multi-LLM core, a workflow automation engine, and quality-of-life improvements.
+5. A presentation and live demonstration of the project's capabilities and development process.9NOVELTY
+(not more than 3 points)
+1. The integration of Ollama to allow user-selectable switching between local and cloud-based LLMs in a single desktop assistant is a novel approach not found in mainstream applications.
+2. The ability for a user to create, save, and execute custom, multi-step desktop automation sequences directly through the voice assistant's interface.
+3. The system acts as a single, unified point of control for disparate functionalities—local system tasks, web interaction, and multiple advanced AI models—providing a uniquely centralized and powerful user experience.10Time line
+DeliverablesNovember 2025(Review 0)• Project Proposal & Abstract
+• Initial Literature Survey & Research Gap Analysis
+• Defined Project Objectives and Scope
+• High-level Project Plan & TimelineJanuary 2026 (SPRINT Review 1)• MVP Delivered: Functional assistant with "Ease of Use" features (App/Web Launch, Voice Notes).
+• Documentation: Architecture, Functional, Test Case, and Retrospective documents for Sprint 1.
+• Presentation: Sprint 1 Review presentation and live demo.March 2026 (SPRINT Review 2)• Features: "LLMs & Automations" features implemented (Multi-LLM Core, Workflow Engine).
+• Product: Enhanced application with integrated AI and automation capabilities.
+• Documents: Updated project documents and a mid-term project report.April 2026 (SPRINT Review 3)• Features: "Quality of Life" features implemented (Reminders, Translation, Interactivity).
+• Product: Final, feature-complete application ready for deployment.
+• Documents: Final Project Report and a complete Research Paper.
+• Presentation: Final project presentation and full demonstration.11Collaboration details1. This project is being developed independently by 2 members of the team.12Target Technology Readiness Level  of the project 
+(TRL Scale 1 to 9)
+TRL 1	-Basic principles observed and reported.
+TRL 2	-Technology concept formulated.
+TRL 3	-Experimental proof of concept.
+TRL 4-	Technology validated in lab.
+TRL 5-	Technology validated in a relevant environment.
+TRL 6	-Technology demonstrated in a relevant environment.
+TRL 7-	System prototype demonstration in operational environment.
+TRL 8-	System complete and qualified.
+TRL 9-   Actual system proven in operational environment.TRL 7 - System prototype demonstration in operational environment.
+The project will result in a high-fidelity prototype (the final application) that will be demonstrated performing all its key functions in a real operational environment (a user's Windows desktop).
+13 Sustainable Development Goal (1-17) ( Most prominent one goal)Goal 9: Industry, Innovation, and Infrastructure
+The project contributes to this goal by building resilient infrastructure (a robust software application) and fostering innovation (novel architecture for personal AI) that promotes inclusive and sustainable industrialization (by making advanced technology more accessible).14  Industry Practice followed for system development ( Agile- SCRUM)
+
+
+
+
+
+Agile – SCRUM
+The project is developed using the Agile SCRUM framework. Work is organized into time-boxed Sprints, each with a clear goal. The process includes backlog refinement, daily stand-ups (scrum meetings), and a sprint retrospective to ensure continuous improvement and iterative development.
+Conference/Journal Publication/Patent Details (Mandatory, Target Publication a)
+
+
+
+
+
+
+
+Signature of Students: 1.
+
+
+		           2.
+	 	           
+
+
+Signature of the Supervisor: 
+PRODUCTIVITYAI – THE DESKTOP ASSISTANT WITH BUILT IN GPT-4
+

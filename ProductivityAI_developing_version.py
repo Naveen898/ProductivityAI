@@ -28,6 +28,56 @@ from ollama import Client
 import fnmatch
 import winreg
 from pathlib import Path
+import keyboard
+import re
+import json
+import threading
+import winsound
+import dateparser 
+from deep_translator import GoogleTranslator
+from playsound import playsound
+import shutil # Ensure shutil is imported
+
+# --- NEW: User Data Management ---
+USER_DATA_FILE = Path(__file__).parent / "user_data.json"
+
+def load_user_data():
+    if USER_DATA_FILE.exists():
+        try:
+            with open(USER_DATA_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_user_data(data):
+    with open(USER_DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+# --- NEW: Contextual Memory for Genius Mode ---
+CHAT_HISTORY = []  # Stores [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+
+def get_chat_history_string():
+    """Converts the last few turns of history into a context string."""
+    # Keep only last 3 turns to prevent token overflow and confusion
+    recent_history = CHAT_HISTORY[-6:] 
+    context_str = ""
+    for msg in recent_history:
+        role = "User" if msg["role"] == "user" else "Assistant"
+        context_str += f"{role}: {msg['content']}\n"
+    return context_str
+
+# --- NEW: Global variable for the current LLM model ---
+CURRENT_LLM_MODEL = "llama3.2:1b"  # Default model
+
+# --- NEW: Dictionary to map simple keywords to full model names ---
+LLM_ALIASES = {
+    "meta": "llama3.2:1b",
+    "micrsosoft": "phi3.5:3.8b",
+    "mistral": "mistral-large-3:675b-cloud",
+    "google": "gemma3:4b-cloud",
+    "coder": "qwen3-coder:480b-cloud"
+}
 
 # Initialize the text-to-speech engine
 engine = pyttsx3.init('sapi5')
@@ -37,13 +87,49 @@ engine.setProperty("rate", 175)
 
 # Function to speak out the given text
 def speak(audio):
-    # Using win32com is more stable and avoids conflicts with speech_recognition
+    #Using win32com is more stable and avoids conflicts with speech_recognition
     try:
         speaker = wincl.Dispatch("SAPI.SpVoice")
         speaker.Speak(audio)
     except Exception as e:
         print(f"TTS error: {e}")
-		
+
+# --- NEW: Cancellable Speak Function (For LLM only) ---
+def speak_cancellable(audio):
+    """Interruptible speech by chunking text (press 's' to stop)."""
+    try:
+        # Split text into chunks (sentences) so we can check for interruption
+        parts = re.split(r'(?<=[.!?])\s+', audio)
+        
+        for part in parts:
+            if not part.strip():
+                continue
+
+            # Check if user wants to stop
+            if keyboard.is_pressed('s'):
+                print("\n[Stopped speaking by user]")
+                speak("Stopped.")
+                break
+            
+            # Speak the current part synchronously
+            speak(part)
+            
+    except Exception as e:
+        print(f"TTS error: {e}")
+        # Valid fallback
+        speak(audio)
+
+# --- NEW: Clean Text Function ---
+def clean_text_for_speech(text):
+    """Removes Markdown (*, #, etc) so the assistant speaks clearly."""
+    # Remove bold/italic markers
+    text = re.sub(r'\*\*|__', '', text) 
+    text = re.sub(r'\*|_', '', text)
+    # Remove headers
+    text = re.sub(r'#+\s', '', text)
+    # Remove code blocks
+    text = re.sub(r'```[\s\S]*?```', 'Code block omitted.', text)
+    return text.strip()
 
 # Function to greet the user based on the time of day
 def wishMe():
@@ -63,14 +149,32 @@ def wishMe():
 
 # Function to get the user's name and welcome them
 def usrname():
-	speak("What should I call you?")
-	uname = takeCommand()
-	speak(f"Welcome Mr. {uname}")
-	columns = shutil.get_terminal_size().columns
-	print("#####################".center(columns))
-	print(f"Welcome  {uname}".center(columns))
-	print("#####################".center(columns))
-	speak("How can I help you?")
+    data = load_user_data()
+    saved_name = data.get("user_name")
+
+    if saved_name:
+        speak(f"Welcome back, {saved_name}")
+        columns = shutil.get_terminal_size().columns
+        print("#####################".center(columns))
+        print(f"Welcome Back {saved_name}".center(columns))
+        print("#####################".center(columns))
+    else:
+        speak("What should I call you?")
+        uname = takeCommand()
+        if uname and uname != "None":
+            speak(f"Welcome Mr. {uname}")
+            columns = shutil.get_terminal_size().columns
+            print("#####################".center(columns))
+            print(f"Welcome {uname}".center(columns))
+            print("#####################".center(columns))
+            
+            # Save the new name
+            data["user_name"] = uname
+            save_user_data(data)
+        else:
+            speak("I didn't catch your name, I'll call you User for now.")
+
+    speak("How can I help you?")
 
 # Function to take voice input from the user
 def takeCommand():
@@ -144,24 +248,68 @@ def transcribe_media_to_text(filename):
 		print(f"Skipping due to an error: {str(e)}")
 		speak("Skipping due to an error")
 
-# Function to generate response using Ollama (Llama 3.2)
+# --- MODIFIED: Function to generate response using the current global model ---
 def generate_response(prompt):
+    global CURRENT_LLM_MODEL, CHAT_HISTORY
     try:
         # Create an instance of the Client class
         client = Client()
         
-        # Call the generate method on the client instance
-        model = "llama3.2:1b"  # Replace with your model name
-        response = client.generate(model=model, prompt=prompt)
-        return response.response  # Return the response text
+        # 1. Prepare messages for Chat API
+        # We start with a system message, then append history and the new prompt
+        messages = [
+            {"role": "system", "content": "You are a helpful AI assistant named ProductivityAI."}
+        ] + CHAT_HISTORY + [{"role": "user", "content": prompt}]
+
+        print(f"--- Generating response using {CURRENT_LLM_MODEL} ---")
+        
+        # 2. Generate response using the chat API (Streaming/Chat aware)
+        response_obj = client.chat(model=CURRENT_LLM_MODEL, messages=messages)
+        response_text = response_obj['message']['content']
+        
+        # 3. Update History
+        CHAT_HISTORY.append({"role": "user", "content": prompt})
+        CHAT_HISTORY.append({"role": "assistant", "content": response_text})
+        
+        # Optional: Prune history if it gets too long (e.g., keep last 20 turns)
+        if len(CHAT_HISTORY) > 40:
+            CHAT_HISTORY = CHAT_HISTORY[-40:]
+            
+        return response_text 
     except Exception as e:
         print(f"Error generating response: {str(e)}")
         return "I'm sorry, I couldn't process your request."
+	
+# --- NEW & IMPROVED: Function to switch the active LLM using keywords ---
+def switch_llm(model_keyword: str):
+    """
+    Switches the active LLM based on a keyword.
+    """
+    global CURRENT_LLM_MODEL, LLM_ALIASES
+    
+    keyword = model_keyword.lower().strip()
+    
+    # Check if the keyword exists in our alias dictionary
+    if keyword not in LLM_ALIASES:
+        speak(f"Sorry, I don't recognize the model keyword '{keyword}'.")
+        print(f"Known keywords are: {', '.join(LLM_ALIASES.keys())}")
+        return
 
-# Function to test text-to-speech
-def speak_test(text):
-	engine.say(text)
-	engine.runAndWait()
+    target_model_name = LLM_ALIASES[keyword]
+    print(f"Attempting to switch to model: {target_model_name}")
+
+    try:
+        # Simply switch the model without validating against the local list
+        # This is necessary because cloud models won't appear in the local 'ollama list'
+        CURRENT_LLM_MODEL = target_model_name
+        speak(f"Successfully switched model to {keyword}.")
+        print(f"Model switched to: {CURRENT_LLM_MODEL}")
+
+    except Exception as e:
+        speak("Sorry, I couldn't connect to Ollama to switch the model.")
+        print(f"Error switching LLM: {e}")
+
+
 
 def llm_activate():
 	speak("Switching to Genius mode, now your LLM is in action")
@@ -191,15 +339,25 @@ def llm_activate():
 						print(f"You said: {text}")
 						speak(f"You said:{text}")
 
+						# Check for model switching command inside Genius Mode
+						if "switch model to" in text.lower() or "change model to" in text.lower() or "switch llm to" in text.lower():
+							model_keyword = text.split("to")[-1].strip()
+							if model_keyword and model_keyword.lower() != "none":
+								switch_llm(model_keyword)
+								continue # Skip generating a response for the switch command
+							else:
+								speak("I didn't catch the model name.")
+								continue
+
 						# Generate response using Ollama
 						response = generate_response(text)  # Call the function to get a response
 
 						print(f"Your LLM says: {response}")
 
 						# Read response using text-to-speech
-						speak_test(response)  # Corrected function name
+						speak_cancellable(clean_text_for_speech(response))
 
-				elif transcription.lower() == "switch to normal mode":  #trying to switch to normal mode
+				elif transcription.lower() == "switch to normal mode" or transcription.lower() == "exit genius mode":  #trying to switch to normal mode
 					print("Here you go, going back to normal mode")
 					speak("Here you go, going back to normal mode")
 					break
@@ -209,11 +367,7 @@ def llm_activate():
 				print(f"An error occurred: {str(e)}")
 				speak(f"An error occurred!")
 
-	def chat(prompt, model, tokenizer):
-		inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-		outputs = model.generate(**inputs, max_new_tokens=200)
-		response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-		return response
+
 
 def get_current_time():
     now = datetime.datetime.now().strftime("%I:%M %p")
@@ -357,6 +511,205 @@ def find_and_open_app(app_name: str) -> bool:
 
     return False
 
+# --- NEW: Workflow Automation Engine ---
+def execute_workflow(mode_name):
+    """
+    Reads workflows.json and executes the Apps/URLs for the given mode.
+    """
+    try:
+        file_path = Path(__file__).parent / "workflows.json"
+        if not file_path.exists():
+            speak("I cannot find the workflows configuration file.")
+            return
+
+        with open(file_path, "r") as f:
+            data = json.load(f)
+
+        # Fuzzy match the mode name (e.g., "work" matches "work", "study" matches "study")
+        mode_data = data.get(mode_name.lower())
+        
+        if not mode_data:
+            speak(f"Sorry, I don't have a workflow for {mode_name} mode.")
+            return
+
+        # 1. Open URLs
+        urls = mode_data.get("urls", [])
+        for url in urls:
+            webbrowser.open(url)
+            time.sleep(1) # Brief pause
+
+        # 2. Open Apps
+        apps = mode_data.get("apps", [])
+        for app in apps:
+            # Reuse our existing find_and_open_app for consistency
+            # We don't speak failure for every app to keep it snappy, just print
+            if not find_and_open_app(app):
+                print(f"Workflow warning: Could not open application '{app}'")
+
+        # 3. Speak Message
+        msg = mode_data.get("message", f"{mode_name} mode enabled.")
+        speak(msg)
+
+    except Exception as e:
+        print(f"Workflow Error: {e}")
+        speak("I encountered an error executing that workflow.")
+
+# --- NEW: Language Translation Function ---
+def translate_and_speak():
+    try:
+        # 1. Get Source Text
+        speak("What should I translate?")
+        print("Listening for text to translate...")
+        text = takeCommand()
+        
+        if text == "None" or not text:
+            speak("I didn't catch that.")
+            return
+
+        # 2. Get Target Language
+        speak("Which language should I translate to? For example, say 'French', 'Hindi', or 'German'.")
+        print("Listening for target language...")
+        lang_input = takeCommand().lower()
+
+        if lang_input == "None":
+            speak("I didn't catch the language.")
+            return
+
+        # Map spoken language names to codes (add more as needed)
+        lang_map = {
+            "hindi": "hi",
+            "french": "fr",
+            "german": "de",
+            "spanish": "es",
+            "italian": "it",
+            "japanese": "ja",
+            "korean": "ko",
+            "chinese": "zh-CN",
+            "russian": "ru",
+            "tamil": "ta",
+            "telugu": "te"
+        }
+
+        # Simple fuzzy match or direct lookup
+        target_code = lang_map.get(lang_input)
+        if not target_code:
+            # Fallback: try using the input directly if it's a valid code, or fail
+            speak(f"Sorry, I don't know the code for {lang_input} yet.")
+            return
+
+        # 3. Translate
+        translator = GoogleTranslator(source='auto', target=target_code)
+        translated_text = translator.translate(text)
+        print(f"Translated: {translated_text}")
+
+        # 4. Speak Output (using gTTS for native accent)
+        # We save to a temp file because standard 'speak' (SAPI5) only does English well.
+        speak(f"In {lang_input}, it is:")
+        
+        tts = gTTS(text=translated_text, lang=target_code, slow=False)
+        temp_file = "translated_audio.mp3"
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        
+        tts.save(temp_file)
+        playsound(temp_file)
+        os.remove(temp_file)
+
+    except Exception as e:
+        print(f"Translation Error: {e}")
+        speak("Something went wrong with the translation.")
+
+# --- NEW: Background Alarm System ---
+ALARMS = []
+
+def alarm_monitor():
+    """Checks for due alarms in the background."""
+    while True:
+        now = datetime.datetime.now()
+        # Iterate over a copy to allow safe removal
+        for alarm in ALARMS[:]:
+            if now >= alarm['time']:
+                reason = alarm.get('reason', 'Alarm')
+                print(f"\n[ALARM] Time is up! {reason}")
+                
+                # Visual/Audio Alert
+                winsound.Beep(1000, 500) # Frequency 1000Hz, Duration 500ms
+                
+                if "Reminder:" in reason:
+                     speak(f"Excuse me. {reason}")
+                else:
+                     speak(f"Time is up! {reason}")
+                
+                ALARMS.remove(alarm)
+        time.sleep(1)
+
+def set_alarm_from_voice():
+    """Parses voice input to set an alarm."""
+    speak("When should I set the alarm for?")
+    print("Listening for time (e.g., 'in 10 minutes', 'at 5 pm')...")
+    
+    time_query = takeCommand()
+    if not time_query or time_query.lower() == "none":
+        speak("I didn't hear a time.")
+        return
+
+    # Parse time using dateparser
+    # settings={'PREFER_DATES_FROM': 'future'} helps with "at 5pm" referring to today's 5pm if it hasn't passed, or tomorrow? 
+    # Actually dateparser defaults are usually okay, but let's be safe.
+    dt = dateparser.parse(time_query, settings={'PREFER_DATES_FROM': 'future'})
+    
+    if dt:
+        # If the parsed time is in the past (e.g. parsed '5pm' but it is 6pm), dateparser often returns past time by default if not strictly future.
+        # We can adjust:
+        if dt < datetime.datetime.now():
+            # If it's seemingly in the past, maybe they meant tomorrow? 
+            # Simple heuristic: add 24 hours if difference is within a day
+            dt += datetime.timedelta(days=1)
+
+        ALARMS.append({'time': dt, 'reason': 'User set alarm'})
+        confirm_msg = f"Alarm set for {dt.strftime('%I:%M %p')}"
+        print(confirm_msg)
+        speak(confirm_msg)
+    else:
+        speak("Sorry, I couldn't understand the time.")
+
+# --- NEW: Specific Reminder Function ---
+def set_reminder_from_voice():
+    """Parses voice input to set a reminder with a specific message."""
+    
+    # 1. Ask for the Task
+    speak("What should the reminder be about?")
+    print("Listening for reminder task...")
+    task = takeCommand()
+    
+    if not task or task.lower() == "none":
+        speak("I didn't catch the reminder message.")
+        return
+
+    # 2. Ask for the Time
+    speak("When should I remind you?")
+    print("Listening for time (e.g., 'in 20 minutes', 'at 10 am')...")
+    time_query = takeCommand()
+    
+    if not time_query or time_query.lower() == "none":
+        speak("I didn't hear a time.")
+        return
+
+    # 3. Parse and Store
+    dt = dateparser.parse(time_query, settings={'PREFER_DATES_FROM': 'future'})
+    
+    if dt:
+        if dt < datetime.datetime.now():
+            dt += datetime.timedelta(days=1) # Assume tomorrow if time is past
+
+        ALARMS.append({'time': dt, 'reason': f"Reminder: {task}"})
+        
+        confirm_msg = f"Okay, I will remind you to {task} at {dt.strftime('%I:%M %p')}"
+        print(confirm_msg)
+        speak(confirm_msg)
+    else:
+        speak("Sorry, I couldn't understand the time.")
+
 #Sprint-1 : Voice Notes
 NOTES_DIR = Path(__file__).resolve().parent / "notes"
 
@@ -376,7 +729,7 @@ def get_latest_note_path() -> Path | None:
 def read_latest_note() -> str | None:
     p = get_latest_note_path()
     if not p:
-        return None
+        return None 
     return p.read_text(encoding="utf-8").strip()
 
 #Sprint-1 : Open Websites
@@ -461,10 +814,19 @@ def open_web_search(query_text: str) -> None:
 if __name__ == '__main__':
 	clear = lambda: os.system('cls')
 	clear()
+
+	# Load assistant name if exists
+	user_data = load_user_data()
+	assname = user_data.get("assistant_name", "ProductivityAI")
+
 	wishMe()
-	#usrname()
+	usrname()
 
 	assistance_mode = False  # Added a flag to track if we're in assistance mode
+
+	# Start the alarm monitor thread
+	t = threading.Thread(target=alarm_monitor, daemon=True)
+	t.start()
 
 	while True:
 		query = takeCommand().lower()
@@ -474,6 +836,13 @@ if __name__ == '__main__':
 			#if assistance_mode:  # Only process commands when in genius mode
 			if 'switch to genius mode' in query:
 				llm_activate()
+			elif "switch model to" in query or "change model to" in query or "switch llm to" in query:
+                # Extract the model keyword from the query
+				model_keyword = query.split("to")[-1].strip()
+				if model_keyword and model_keyword.lower() != "none":
+					switch_llm(model_keyword)
+				else:
+					speak("I didn't catch the model name.")
 			
 			elif 'wikipedia' in query:
 				speak('Searching Wikipedia... Please wait...')
@@ -482,6 +851,27 @@ if __name__ == '__main__':
 				speak("According to Wikipedia")
 				print(results)
 				speak(results)
+
+			# --- NEW: Workflow Automation Commands ---
+			elif "enable" in query and "mode" in query:
+				# Example: "enable work mode" -> mode = "work"
+				mode = query.replace("enable", "").replace("mode", "").strip()
+				execute_workflow(mode)
+
+			elif "start" in query and "workflow" in query:
+				# Example: "start study workflow" -> mode = "study"
+				mode = query.replace("start", "").replace("workflow", "").strip()
+				execute_workflow(mode)
+
+			elif "set" in query and "alarm" in query:
+				set_alarm_from_voice()
+
+			# --- NEW: Reminder Command ---
+			elif "remind me" in query or "set a reminder" in query:
+				set_reminder_from_voice()
+
+			elif "translate" in query or "translation" in query:
+				translate_and_speak()
 			
 			#elif 'open youtube' in query:
 			#	speak("Here you go to Youtube\n")
@@ -491,8 +881,31 @@ if __name__ == '__main__':
 			#	speak("Here you go to Google\n")
 			#	webbrowser.open("google.com")
 
+			elif "change name" in query or "change my name" in query:
+				speak("Wait, do you want to change MY name, or YOUR name?")
+				ans = takeCommand().lower()
+				
+				if "your" in ans or "assistant" in ans:
+					speak("Okay, what is my new name?")
+					new_assname = takeCommand()
+					if new_assname and new_assname != "None":
+						data = load_user_data()
+						data["assistant_name"] = new_assname
+						save_user_data(data)
+						assname = new_assname
+						speak(f"Thanks, I like the name {assname}")
+				
+				else:
+					speak("Okay, what should I call you from now on?")
+					new_name = takeCommand()
+					if new_name and new_name != "None":
+						data = load_user_data()
+						data["user_name"] = new_name
+						save_user_data(data)
+						speak(f"Done. I will call you {new_name}.")
+
 			elif 'the time' in query:
-				current_time=get_current_time()
+				current_time = get_current_time()
 				speak(f"The time currently is {current_time}")
 
 			#elif 'open powerpoint' in query:
@@ -512,10 +925,6 @@ if __name__ == '__main__':
 			elif 'fine' in query or "good" in query:
 				speak("It's good to know that your fine")
 
-			elif "change name" in query:
-				speak("What would you like to call me? ")
-				assname = takeCommand()
-				speak("Thanks for naming me")
 
 			elif "what's your name" in query or "What is your name" in query:
 				speak("My friends call me")
@@ -556,53 +965,50 @@ if __name__ == '__main__':
 			elif 'reason for you' in query:
 				speak("I was created as a Minor project by Mister Naveen ")
 
+			# Check if 'articles' exists and has data
 			elif 'news' in query:
-
 				try:
+					speak('Here are the top headlines from India. Press s to stop reading.')
+					print('''=============== Indian News ============'''+ '\n')
 
-					speak('here are some top news from BBC News')
-					print('''=============== BBC News ============'''+ '\n')
+					# Updated API params for Indian Top Headlines (NewsData.io)
+					query_params = {
+						"apikey": "pub_f036840f94a84f65a9eed20f90abbc3c",
+						"country": "in",
+						"timezone": "Asia/Kolkata",
+						"language": "en"
+					}
+					main_url = "https://newsdata.io/api/1/latest"
 
-					def NewsFromBBC():
-						query_params = {
-						"source": "bbc-news",
-						"sortBy": "top",
-						"apiKey": "4dbc17e007ab436fb66416009dfb59a8"
-							}
-						main_url = " https://newsapi.org/v1/articles"
+					# fetching data in json format
+					res = requests.get(main_url, params=query_params)
+					news_data = res.json()
+					
+					# Check if 'results' exists and has data (NewsData.io uses 'results' instead of 'articles')
+					if "results" in news_data:
+						articles = news_data["results"]
+						headlines = []
+						
+						# Collect top 5 or 10 headlines to avoid reading for too long
+						for i, ar in enumerate(articles[:10]):
+							title = ar.get("title")
+							if title:
+								headlines.append(title)
+								print(f"{i + 1}. {title}")
 
-						# fetching data in json format
-						res = requests.get(main_url, params=query_params)
-						open_bbc_page = res.json()
-
-						# getting all articles in a string article
-						article = open_bbc_page["articles"]
-
-						# empty list which will
-						# contain all trending news
-						results = []
-
-						for ar in article:
-							results.append(ar["title"])
-
-						for i in range(len(results)):
-
-							# printing all trending news
-							print(i + 1, results[i])
-
-						#to read the news out loud for us
-						from win32com.client import Dispatch
-						speak = Dispatch("SAPI.Spvoice")
-						speak.Speak(results)				
-
-					# Driver Code
-					if __name__ == '__main__':
-
-						# function call
-						NewsFromBBC()
+						if headlines:
+							# Join all headlines into one long string for the cancellable speaker
+							full_news_readout = ". Next headline: ".join(headlines)
+							speak_cancellable(full_news_readout)
+						else:
+							speak("No headlines found at the moment.")
+					else:
+						print(f"API Error: {news_data}")
+						speak("I couldn't fetch the news data.")
 
 				except Exception as e:
 					print(str(e))
+					speak("Sorry, I am not able to fetch news at the moment.")
 
 			elif 'lock window' in query:
 				speak("locking the device")

@@ -1,0 +1,29 @@
+{
+  "work": {
+    "apps": ["code"],
+    "urls": [
+      "https://gemini.google.com",
+      "https://stackoverflow.com"
+    ],
+    "message": "Alright, here it is, Work mode enabled. Happy Coding!"
+  },
+  "study": {
+    "apps": [
+      "C:\\Users\\bnave\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Notion.lnk",
+      "C:\\Users\\bnave\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Notion Calendar.lnk"
+    ],
+    "urls": [
+      "https://chatgpt.com",
+      "https://notebooklm.google.com"
+    ],
+    "message": "Here you go, Your Study Environment is ready."
+  },
+  "relax": {
+    "apps": [],
+    "urls": [
+      "https://www.youtube.com",
+      "https://music.youtube.com"
+    ],
+    "message": "Alright, now Its time to chill"
+  }
+}
